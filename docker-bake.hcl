@@ -2,13 +2,14 @@ variable "TAG" {
   default = "slim"
 }
 
+group "default" {
+  targets = ["common", "dev"]
+}
+
 # Common settings for all targets
 target "common" {
   context = "."
   platforms = ["linux/amd64"]
-  args = {
-    BUILDKIT_INLINE_CACHE = "1"
-  }
 }
 
 # Regular ComfyUI image (CUDA 12.4)
@@ -46,9 +47,6 @@ target "devpush5090" {
 target "rtx5090" {
   inherits = ["common"]
   dockerfile = "Dockerfile.5090"
-  args = {
-    START_SCRIPT = "start.5090.sh"
-  }
   tags = [
     "runpod/comfyui:${TAG}-5090",
     "runpod/comfyui:latest-5090",

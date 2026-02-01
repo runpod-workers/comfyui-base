@@ -137,7 +137,8 @@ RUN pip install jupyter
 # Configure SSH for root login
 RUN sed -i 's/#PermitRootLogin prohibit-password/PermitRootLogin yes/' /etc/ssh/sshd_config && \
     sed -i 's/#PasswordAuthentication yes/PasswordAuthentication yes/' /etc/ssh/sshd_config && \
-    mkdir -p /run/sshd
+    mkdir -p /run/sshd && \
+    rm -f /etc/ssh/ssh_host_*
 
 # Create workspace directory
 RUN mkdir -p /workspace/runpod-slim
