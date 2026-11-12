@@ -89,6 +89,7 @@ Recognized at runtime by the start scripts:
 
 - `PUBLIC_KEY` – If provided, enables key-based SSH for root; otherwise a random password is generated and printed.
 - `JUPYTER_PASSWORD` – If set, used as the JupyterLab token (no browser; root at `/workspace`).
+- `OMP_NUM_THREADS` and `MKL_NUM_THREADS` – When `OMP_NUM_THREADS` is unset, startup derives a thread limit from the cgroup v2 CPU quota (falling back to v1), rounds down to at least one thread, and caps it at `nproc`. It exports the limit for OpenMP and, if unset, MKL. Unlimited or unavailable quotas leave both unchanged. Explicit values (including empty values) are preserved; setting `OMP_NUM_THREADS` skips automatic sizing.
 - GPU/CUDA-related environment variables are propagated (`CUDA*`, `LD_LIBRARY_PATH`, `PYTHONPATH`, and `RUNPOD_*` vars if present in the environment).
 
 ## Dependency Management
