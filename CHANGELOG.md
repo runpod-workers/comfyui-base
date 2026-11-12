@@ -47,6 +47,7 @@ On each release (e.g. `2.0.0`):
 
 ### Fixed
 
+- CPU thread pools now respect the container cgroup CPU quota (v2 or v1), rounded down with a minimum of one and capped at `nproc`, avoiding severe PyTorch CPU throttling on shared hosts. Existing `OMP_NUM_THREADS` and `MKL_NUM_THREADS` overrides are preserved.
 - Runtime pip operations now inherit a baked constraint file for the CUDA-specific PyTorch stack, preventing CUDA 12.8 images from accidentally upgrading to newer `cu130` PyTorch wheels during legacy venv migration or custom-node dependency installs.
 
 ### Removed

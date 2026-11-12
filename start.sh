@@ -15,6 +15,42 @@ BAKED_NODES=("ComfyUI-Manager" "ComfyUI-KJNodes" "Civicomfy" "ComfyUI-RunpodDire
 #                          Function Definitions                                  #
 # ---------------------------------------------------------------------------- #
 
+# Limit CPU thread pools to the container quota, rather than the host core count.
+# Optional path arguments let tests use fake cgroup files.
+configure_cpu_threads() {
+    [ "${OMP_NUM_THREADS+x}" = x ] && return 0
+
+    local cpu_max="${1:-/sys/fs/cgroup/cpu.max}"
+    local cpu_quota="${2:-/sys/fs/cgroup/cpu/cpu.cfs_quota_us}"
+    local cpu_period="${3:-/sys/fs/cgroup/cpu/cpu.cfs_period_us}"
+    local quota period threads usable_cpus
+
+    if [ -r "$cpu_max" ]; then
+        read -r quota period < "$cpu_max" || return 0
+        [ "$quota" = max ] && return 0
+    elif [ -r "$cpu_quota" ] && [ -r "$cpu_period" ]; then
+        read -r quota < "$cpu_quota" || return 0
+        read -r period < "$cpu_period" || return 0
+        [ "$quota" = -1 ] && return 0
+    else
+        return 0
+    fi
+
+    # Ignore invalid quotas without preventing the container from starting.
+    [[ "$quota" =~ ^[0-9]+$ && "$period" =~ ^[0-9]+$ ]] || return 0
+    [ "$period" -gt 0 ] || return 0
+    threads=$((10#$quota / 10#$period))
+    [ "$threads" -ge 1 ] || threads=1
+    usable_cpus=$(nproc) || return 0
+    [ "$threads" -le "$usable_cpus" ] || threads=$usable_cpus
+
+    export OMP_NUM_THREADS="$threads"
+    if [ "${MKL_NUM_THREADS+x}" != x ]; then
+        export MKL_NUM_THREADS="$threads"
+    fi
+    echo "CPU thread limits from cgroup quota: OMP_NUM_THREADS=$OMP_NUM_THREADS MKL_NUM_THREADS=$MKL_NUM_THREADS"
+}
+
 # Setup SSH with optional key or random password
 setup_ssh() {
     mkdir -p ~/.ssh
@@ -61,7 +97,7 @@ export_env_vars() {
     > "$SSH_ENV_DIR"
     
     # Export to multiple locations for maximum compatibility
-    printenv | grep -E '^RUNPOD_|^PATH=|^_=|^CUDA|^LD_LIBRARY_PATH|^PYTHONPATH|^PIP_CONSTRAINT=' | while read -r line; do
+    printenv | grep -E '^RUNPOD_|^PATH=|^_=|^CUDA|^LD_LIBRARY_PATH|^PYTHONPATH|^PIP_CONSTRAINT=|^OMP_NUM_THREADS=|^MKL_NUM_THREADS=' | while read -r line; do
         # Get variable name and value
         name=$(echo "$line" | cut -d= -f1)
         value=$(echo "$line" | cut -d= -f2-)
@@ -263,6 +299,7 @@ if [ -f "$PIP_CONSTRAINT_FILE" ]; then
     echo "Using runtime pip constraints from $PIP_CONSTRAINT_FILE"
 fi
 
+configure_cpu_threads
 setup_ssh
 export_env_vars
 
